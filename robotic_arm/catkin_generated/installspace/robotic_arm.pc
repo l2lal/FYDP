@@ -1,0 +1,8 @@
+prefix=/home/lalit/catkin_ws/install
+
+Name: robotic_arm
+Description: Description of robotic_arm
+Version: 0.0.0
+Cflags: 
+Libs: -L/home/lalit/catkin_ws/install/lib 
+Requires: 

@@ -1,0 +1,104 @@
+<?xml version="1.0"?>
+<robot name="robotic_arm">
+
+  <link name="enclosure">
+    <inertial>
+      <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/>
+      <mass value="0.1"/>
+      <inertia ixx="0.0" ixy="0.0" ixz="0.0" iyy="0.0" iyz="0.0" izz="0.0"/>
+    </inertial>
+    <collision>
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <geometry>
+          <mesh filename="package://robotic_arm/meshes/enclosure.STL" scale="0.01 0.01 0.01"/>
+        </geometry>
+    </collision>
+    <visual>
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <geometry>
+        <mesh filename="package://robotic_arm/meshes/enclosure.STL" scale="0.01 0.01 0.01"/>
+      </geometry>
+    </visual>
+  </link>
+
+  <link name="base_link">
+    <inertial>
+      <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/>
+      <mass value="0.1"/>
+      <inertia ixx="0.0" ixy="0.0" ixz="0.0" iyy="0.0" iyz="0.0" izz="0.0"/>
+    </inertial>
+    <collision>
+        <origin xyz="250 300 400" rpy="1.570 0 0"/>
+        <geometry>
+          <mesh filename="package://robotic_arm/meshes/base.STL" scale="0.01 0.01 0.01"/>
+        </geometry>
+    </collision>
+    <visual>
+      <origin rpy="1.570 0 0" xyz="250 300 400"/>
+      <geometry>
+        <mesh filename="package://robotic_arm/meshes/base.STL" scale="0.01 0.01 0.01"/>
+      </geometry>
+    </visual>
+  </link>
+
+  <joint name="enclosure_to_plate" type="fixed">
+    <parent link="enclosure"/>
+    <child link="base_link"/>
+    <origin xyz="0 0 0"/>
+  </joint>
+
+  <link name="turntable">
+    <inertial>
+      <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/>
+      <mass value="0.1"/>
+      <inertia ixx="0.0" ixy="0.0" ixz="0.0" iyy="0.0" iyz="0.0" izz="0.0"/>
+    </inertial>
+    <collision>
+        <origin xyz="250 300 399" rpy="-1.570 0 0"/>
+        <geometry>
+          <mesh filename="package://robotic_arm/meshes/turntable.STL" scale="0.01 0.01 0.01"/>
+        </geometry>
+    </collision>
+    <visual>
+      <origin rpy="-1.570 0 0" xyz="250 300 399"/>
+      <geometry>
+        <mesh filename="package://robotic_arm/meshes/turntable.STL" scale="0.01 0.01 0.01"/>
+      </geometry>
+    </visual>
+  </link>
+
+  <joint name="plate_to_turntable" type="fixed">
+    <parent link="base_link"/>
+    <child link="turntable"/>
+    <origin xyz="0 0 0"/>
+  </joint>
+
+  <link name="humerus">
+    <inertial>
+      <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/>
+      <mass value="0.1"/>
+      <inertia ixx="0.0" ixy="0.0" ixz="0.0" iyy="0.0" iyz="0.0" izz="0.0"/>
+    </inertial>
+    <collision>
+        <origin xyz="250 300 398" rpy="0 -3.1415 1.570"/>
+        <geometry>
+          <mesh filename="package://robotic_arm/meshes/humerus.STL" scale="0.01 0.01 0.01"/>
+        </geometry>
+    </collision>
+    <visual>
+      <origin rpy="0 -3.1415 1.570" xyz="250 300 398"/>
+      <geometry>
+        <mesh filename="package://robotic_arm/meshes/humerus.STL" scale="0.01 0.01 0.01"/>
+      </geometry>
+    </visual>
+  </link>
+
+  <joint name="turntable_to_humerus_joint" type="fixed">
+    <parent link="turntable"/>
+    <child link="humerus"/>
+    <origin xyz="0 0 0"/>
+  </joint>
+
+
+</robot>
+
