@@ -76,8 +76,8 @@ void loop() {
     if(mode == '2') // record mode
     {
       int record = recordMotorPositions(); 
-      if(record)
-      SerialUSB.println("recording successful"); 
+      //if(record)
+      //SerialUSB.println("recording successful"); 
     }
     
     else if(mode == '1') // playback mode
@@ -105,8 +105,8 @@ void loop() {
           command = strtok(0, ",");
       }
       int playback = playBackPositions(pos); 
-      if(playback)
-      SerialUSB.println("playback successful"); 
+      //if(playback)
+      //SerialUSB.println("playback successful"); 
     }
     
     else
