@@ -216,6 +216,6 @@ if __name__ == '__main__':
     #Signal handler
     signal.signal(signal.SIGINT, sigint_handler(arm, pi_Server)
    
-    print("Starting the loop")
+    #print("Starting the loop")
     while True:
         arm.run()
