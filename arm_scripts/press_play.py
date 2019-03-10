@@ -19,11 +19,12 @@ class MotorInterface(object):
         self._playback_freq = playback_freq
         baud_rate = 9600
         self._ser_AX = serial.Serial("/dev/ttyACM0", baud_rate)
-        #self._ser_XL = serial.Serial("/dev/ttyACM0", baud_rate)
+        self._ser_XL = serial.Serial("/dev/ttyACM1", baud_rate)
 
     def signal_handler(self, sig, frame):
         print('You pressed Ctrl+C!')
         self._ser_AX.close()
+        self._ser_XL.close()
         sys.exit(0)
 
     def start_recording(self, channel):
@@ -94,18 +95,18 @@ class MotorInterface(object):
     def recording(self):
         msg = ["2"]
         self.write_to_serial_port(msg, self._ser_AX)
-        #self.write_to_serial_port(msg, self._ser_XL)
+        self.write_to_serial_port(msg, self._ser_XL)
 
         #Get a response from the AX controllers
         AX_resp = self.read_serial_port(self._ser_AX)
-        #XL_resp = self.read_serial_port(self._ser_XL)
+        XL_resp = self.read_serial_port(self._ser_XL)
 
-        if AX_resp != None: # and XL_resp != None:
+        if AX_resp != None and XL_resp != None:
             AX_resp = AX_resp[1:4]
             if len(AX_resp) == 3:
                 self._motor_angles.append(AX_resp[0:3])
                 #print self._motor_angles
-                #motor_angles[self._recording_index] += XL_resp[1]
+                self._motor_angles[self._recording_index] += XL_resp[1]
                 self._recording_index += 1
         else :
             print "No Response!"
@@ -116,16 +117,19 @@ class MotorInterface(object):
             self._current_state = 0
             print "end of playback"
         AX_msg = ["1"]
-        AX_msg += self._motor_angles[self._playback_index]
+        XL_msg = AX_msg
+        AX_msg += self._motor_angles[self._playback_index][0:3]
+        XL_msg += self._motor_angles[self._playback_index][3]
         self._playback_index -= 1;
         self.write_to_serial_port(AX_msg, self._ser_AX)
-        #self.write_to_serial_port(msg, self._ser_XL)
+        self.write_to_serial_port(XL_msg, self._ser_XL)
 
         time.sleep(1.0/self._playback_freq)
 
     def waiting(self):
         msg = ["0"]
         self.write_to_serial_port(msg, self._ser_AX)
+        self.write_to_serial_port(msg, self._ser_XL)
         time.sleep(1.0/self._playback_freq)
 
     def run(self):
