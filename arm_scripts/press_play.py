@@ -1,5 +1,5 @@
 #! /usr/bin/env python
-from threading import Thread
+from threading import Thread, Lock
 import RPi.GPIO as GPIO
 import serial
 import crcmod
@@ -22,6 +22,8 @@ class MotorInterface(BaseHTTPRequestHandler):
         baud_rate = 9600
         self._ser_AX = serial.Serial("/dev/ttyACM0", baud_rate)
         self._ser_XL = serial.Serial("/dev/ttyACM1", baud_rate)
+        self.steady_mutex = Lock()
+        self.steady_bool = False
 
     def signal_handler(self):
         print('You pressed Ctrl+C!')
@@ -150,7 +152,9 @@ class MotorInterface(BaseHTTPRequestHandler):
 
     def do_GET(self):
         self._set_headers()
-        self.wfile.write("<html><body><h1>hi!</h1></body></html>")
+        self.steady_mutex.acquire()
+        self.wfile.write("<html><body><h1>self.steady_bool</h1></body></html>")
+        self.stead_mutex.release()
 
     def do_HEAD(self):
         self._set_headers()
