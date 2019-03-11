@@ -9,6 +9,22 @@ from BaseHTTPServer import BaseHTTPRequestHandler, HTTPServer
 import SocketServer
 
 class MotorInterface(BaseHTTPRequestHandler):
+    def __init__(self, recording_freq, playback_freq):
+        self._states = ["waiting", "recording", "playback"]
+        self._current_state = 0
+        self._motor_angles = []
+        self._recording_index = 0
+        self._playback_index = 0
+        self._recording_freq = recording_freq
+        self._playback_freq = playback_freq
+        baud_rate = 9600
+        self._ser_AX = serial.Serial("/dev/ttyACM0", baud_rate)
+        self._ser_XL = serial.Serial("/dev/ttyACM1", baud_rate)
+        self.steady_mutex = Lock()
+        self.steady_bool = False
+        self.pi_Server = self.Server_Thread()
+        self.pi_ServerThread = None
+        
     # THREAD CLASS: Server_Thread -> Used to spawn server thread
     class Server_Thread:  
         def __init__(self):
@@ -26,23 +42,6 @@ class MotorInterface(BaseHTTPRequestHandler):
             self.httpd.serve_forever()
      #END SERVER THREAD CLASS
     
-    def __init__(self, recording_freq, playback_freq):
-        self._states = ["waiting", "recording", "playback"]
-        self._current_state = 0
-        self._motor_angles = []
-        self._recording_index = 0
-        self._playback_index = 0
-        self._recording_freq = recording_freq
-        self._playback_freq = playback_freq
-        baud_rate = 9600
-        self._ser_AX = serial.Serial("/dev/ttyACM0", baud_rate)
-        self._ser_XL = serial.Serial("/dev/ttyACM1", baud_rate)
-        self.steady_mutex = Lock()
-        self.steady_bool = False
-        self.pi_Server = self.Server_Thread()
-        self.pi_ServerThread = None
-       
-
     def terminate(self, signum, frame):
         print 'You pressed CTRL+C'
         self._ser_AX.close()
