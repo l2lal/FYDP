@@ -11,13 +11,34 @@ import SocketServer
 MUTEX = Lock()
 steady_bool = False
 
+#HTTP SERVER FUNCTIONS
+class S(BaseHTTPRequestHandler):
+    def _set_headers(self):
+        self.send_response(200)
+        self.send_header('Content-type', 'text/html')
+        self.end_headers()
 
+    def do_GET(self):
+        self._set_headers()
+        self.steady_mutex.acquire()
+        self.wfile.write("<html><body><h1>hi!</h1></body></html>")
+        self.stead_mutex.release()
+
+    def do_HEAD(self):
+        self._set_headers()
+
+    def do_POST(self):
+        # Doesn't do anything with posted data
+        self._set_headers()
+        self.wfile.write("<html><body><h1>POST!</h1></body></html>")
+#END HTTP SERVER FUNCTIONS
+    
 # THREAD CLASS: Server_Thread -> Used to spawn server thread
 class Server_Thread:  
     def __init__(self):
         self._running = True
         self.server_address = ('', 80)
-        self.httpd = HTTPServer(self.server_address, MotorInterface)
+        self.httpd = HTTPServer(self.server_address, S)
 
     def terminate(self):
         print('closing server')
@@ -158,27 +179,6 @@ class MotorInterface(object):
             self.recording()
         elif self._current_state == 2:
             self.playing()
-    
-    #HTTP SERVER FUNCTIONS
-    def _set_headers(self):
-        self.send_response(200)
-        self.send_header('Content-type', 'text/html')
-        self.end_headers()
-
-    def do_GET(self):
-        self._set_headers()
-        self.steady_mutex.acquire()
-        self.wfile.write("<html><body><h1>hi!</h1></body></html>")
-        self.stead_mutex.release()
-
-    def do_HEAD(self):
-        self._set_headers()
-        
-    def do_POST(self):
-        # Doesn't do anything with posted data
-        self._set_headers()
-        self.wfile.write("<html><body><h1>POST!</h1></body></html>")
-    #END HTTP SERVER FUNCTIONS
         
 def generateChecksum(data):
     checksum  = 0
