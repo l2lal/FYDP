@@ -9,21 +9,21 @@ from BaseHTTPServer import BaseHTTPRequestHandler, HTTPServer
 import SocketServer
 
 # THREAD CLASS: Server_Thread -> Used to spawn server thread
-    class Server_Thread:  
-        def __init__(self):
-            self._running = True
-            self.server_address = ('', 80)
-            self.httpd = HTTPServer(self.server_address, MotorInterface)
+class Server_Thread:  
+    def __init__(self):
+        self._running = True
+        self.server_address = ('', 80)
+        self.httpd = HTTPServer(self.server_address, MotorInterface)
 
-        def terminate(self):
-            print('closing server')
-            self.httpd.shutdown()
-            self._running = False  
+    def terminate(self):
+        print('closing server')
+        self.httpd.shutdown()
+        self._running = False  
 
-        def run(self):
-            print 'Starting httpd...'
-            self.httpd.serve_forever()
-     #END SERVER THREAD CLASS
+    def run(self):
+        print 'Starting httpd...'
+        self.httpd.serve_forever()
+ #END SERVER THREAD CLASS
     
 class MotorInterface(BaseHTTPRequestHandler):
     def __init__(self, recording_freq, playback_freq):
