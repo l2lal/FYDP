@@ -2,7 +2,6 @@
 from threading import Thread, Lock
 import RPi.GPIO as GPIO
 import serial
-import crcmod
 import signal
 import sys
 import time
@@ -16,7 +15,6 @@ class MotorInterface(BaseHTTPRequestHandler):
         self._motor_angles = []
         self._recording_index = 0
         self._playback_index = 0
-        self._crc32 = crcmod.Crc(0x104c11db7, initCrc=0, xorOut=0xFFFFFFFF)
         self._recording_freq = recording_freq
         self._playback_freq = playback_freq
         baud_rate = 9600
@@ -24,11 +22,29 @@ class MotorInterface(BaseHTTPRequestHandler):
         self._ser_XL = serial.Serial("/dev/ttyACM1", baud_rate)
         self.steady_mutex = Lock()
         self.steady_bool = False
+        
+    # THREAD CLASS: Server_Thread -> Used to spawn server thread
+    class Server_Thread:  
+        def __init__(self):
+            self._running = True
+            self.server_address = ('', 80)
+            self.httpd = HTTPServer(self.server_address, MotorInterface)
 
-    def signal_handler(self):
-        print('You pressed Ctrl+C!')
+        def terminate(self):
+            print('closing server')
+            self.httpd.shutdown()
+            self._running = False  
+
+        def run(self):
+            print 'Starting httpd...'
+            self.httpd.serve_forever()
+     #END SERVER THREAD CLASS
+
+    def terminate(self, signum, frame):
+        print 'You pressed CTRL+C'
         self._ser_AX.close()
         self._ser_XL.close()
+        self.httpd.shutdown()
         sys.exit(0)
 
     def start_recording(self, channel):
@@ -164,22 +180,6 @@ class MotorInterface(BaseHTTPRequestHandler):
         self._set_headers()
         self.wfile.write("<html><body><h1>POST!</h1></body></html>")
     #END HTTP SERVER FUNCTIONS
-    
-# THREAD CLASS: Server_Thread -> Used to spawn server thread
-class Server_Thread:  
-    def __init__(self):
-        self._running = True
-        self.server_address = ('', 80)
-        self.httpd = HTTPServer(self.server_address, MotorInterface)
-
-    def terminate(self):
-        print('closing server')
-        self.httpd.shutdown()
-        self._running = False  
-
-    def run(self):
-        print 'Starting httpd...'
-        self.httpd.serve_forever()
         
 def generateChecksum(data):
     checksum  = 0
@@ -187,10 +187,6 @@ def generateChecksum(data):
         checksum += ord(char)
     return (checksum % 256)
 
-def sigint_handler(arm_interface, server_thread):
-    arm_interface.signal_handler()
-    server_thread.terminate()
-    
 if __name__ == '__main__':
     recording_freq = 30.0
     playback_freq = recording_freq
@@ -220,7 +216,7 @@ if __name__ == '__main__':
     pi_ServerThread.start()
     
     #Signal handler
-    signal.signal(signal.SIGINT, sigint_handler(arm, pi_Server))
+    signal.signal(signal.SIGINT, arm.terminate())
    
     #print("Starting the loop")
     while True:
