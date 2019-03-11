@@ -209,7 +209,7 @@ if __name__ == '__main__':
     
     # Starting webserver thread
     #Create Class
-    pi_Server = Server_Thread()
+    pi_Server = arm.Server_Thread()
     #Create Thread
     pi_ServerThread = Thread(target=pi_Server.run) 
     #Start Thread 
