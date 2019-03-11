@@ -21,7 +21,7 @@ class S(BaseHTTPRequestHandler):
     def do_GET(self):
         self._set_headers()
         MUTEX.acquire()
-        self.wfile.write("<html><body><h1>hi!</h1></body></html>")
+        self.wfile.write("<html><body><h1>steady_bool</h1></body></html>")
         MUTEX.release()
 
     def do_HEAD(self):
