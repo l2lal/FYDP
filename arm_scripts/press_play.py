@@ -42,7 +42,6 @@ class MotorInterface(object):
         self._ser_XL = serial.Serial("/dev/ttyACM1", baud_rate)
     
     def terminate(self):
-        print 'You pressed CTRL+C'
         self._ser_AX.close()
         self._ser_XL.close()
 
@@ -187,6 +186,7 @@ def generateChecksum(data):
     return (checksum % 256)
 
 def terminate(arm, thread):
+    print 'You pressed CTRL+C bro'
     arm.terminate()
     thread.terminate()
     sys.exit(0)
