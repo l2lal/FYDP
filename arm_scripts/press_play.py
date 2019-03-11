@@ -92,35 +92,35 @@ class MotorInterface(object):
 
     #find when the arm is stalled and update the status on our webserver
     def find_pause_points(self):
-        for index in range(self._window_size, len(self._motor_angles):
+        for index in range(self._window_size, len(self._motor_angles)):
             low_index = index - self._window_size
             #TODO the code is a bit too chunky
-            if abs(self._motor_angles[index][0] - self._motor_angles[low_index][0]) < self._pulse_hysteresis_threshold
-               and abs(self._motor_angles[index][1] - self._motor_angles[low_index][1]) < self._pulse_hysteresis_threshold
-               and abs(self._motor_angles[index][2] - self._motor_angles[low_index][2]) < self._pulse_hysteresis_threshold
-               and abs(self._motor_angles[index][3] - self._motor_angles[low_index][4]) < self._pulse_hysteresis_threshold:
+            if abs(self._motor_angles[index][0] - self._motor_angles[low_index][0]) < self._pulse_hysteresis_threshold and\
+               abs(self._motor_angles[index][1] - self._motor_angles[low_index][1]) < self._pulse_hysteresis_threshold and\
+               abs(self._motor_angles[index][2] - self._motor_angles[low_index][2]) < self._pulse_hysteresis_threshold and\
+               abs(self._motor_angles[index][3] - self._motor_angles[low_index][3]) < self._pulse_hysteresis_threshold:
                 average = []
-                average.pushback((self._motor_angles[index][0] + self._motor_angles[low_index][0])/2)
-                average.pushback((self._motor_angles[index][1] + self._motor_angles[low_index][1])/2)
-                average.pushback((self._motor_angles[index][2] + self._motor_angles[low_index][2])/2)
-                average.pushback((self._motor_angles[index][3] + self._motor_angles[low_index][3])/2)
+                average.append((self._motor_angles[index][0] + self._motor_angles[low_index][0])/2)
+                average.append((self._motor_angles[index][1] + self._motor_angles[low_index][1])/2)
+                average.append((self._motor_angles[index][2] + self._motor_angles[low_index][2])/2)
+                average.append((self._motor_angles[index][3] + self._motor_angles[low_index][3])/2)
 
                 upper_bound  = [(self._pulse_hysteresis_threshold/2)+x for x in average]
                 lower_bound = [x-(self._pulse_hysteresis_threshold/2) for x in average]
-                bool safe = True
+                safe = True
                 for ii in range(index - self._window_size, index):
-                    if self._motor_angles[ii][0] < lower_bound[0] or
-                       self._motor_angles[ii][1] < lower_bound[1] or
-                       self._motor_angles[ii][2] < lower_bound[2] or
+                    if self._motor_angles[ii][0] < lower_bound[0] or\
+                       self._motor_angles[ii][1] < lower_bound[1] or\
+                       self._motor_angles[ii][2] < lower_bound[2] or\
                        self._motor_angles[ii][3] < lower_bound[3]:
                        safe = False
-                    if self._motor_angles[ii][0] > upper_bound[0] or
-                       self._motor_angles[ii][1] > upper_bound[1] or
-                       self._motor_angles[ii][2] > upper_bound[2] or
+                    if self._motor_angles[ii][0] > upper_bound[0] or\
+                       self._motor_angles[ii][1] > upper_bound[1] or\
+                       self._motor_angles[ii][2] > upper_bound[2] or\
                        self._motor_angles[ii][3] > upper_bound[3]:
                        safe = False
                 if safe:
-                    self._pause_points.pushback(average)
+                    self._pause_points.append(average)
 
     def readBuffer(self, ser):
         data = ser.read()
@@ -137,27 +137,30 @@ class MotorInterface(object):
         response  = self.readBuffer(ser)
         response = response.strip("\r\n")
         response = response.split(",")
+        if response[0] != 's':
+            return None
         checksum = response[-1]
-        response = response[0:-1]
-        received = ",".join(map(str, response))
-        received += ','
-        calculated = generateChecksum(received)
         reject = False
         for index in range(1,len(response)):
             try:
-                int(response[index])
+                response[index] = int(response[index])
             except ValueError:
                 reject = True
                 continue
             if int(response[index]) > 1024 or response[index] < 0:
                 reject = True
+        response = response[0:-1]
+        received = ",".join(map(str, response))
+        received += ','
+        calculated = generateChecksum(received)
         if reject:
-            response = []
+            return response
     
-        if checksum != str(calculated):
+        if int(checksum) != int(calculated):
             print "Checksum mismatch!"
             print "received: " + checksum
             print "calculated: " + str(calculated)
+            print response
             return None
         return response
 
@@ -182,10 +185,10 @@ class MotorInterface(object):
 
         if AX_resp != None and XL_resp != None:
             AX_resp = AX_resp[1:4]
+            #AX_resp = [int(x) for x in AX_resp]
             if len(AX_resp) == 3:
                 self._motor_angles.append(AX_resp[0:3])
-                #print self._motor_angles
-                self._motor_angles[self._recording_index] += XL_resp[1]
+                self._motor_angles[self._recording_index].append(XL_resp[1])
                 self._recording_index += 1
         else :
             print "No Response!"
@@ -197,8 +200,8 @@ class MotorInterface(object):
             print "end of playback"
         AX_msg = ["1"]
         XL_msg = AX_msg
-        AX_msg += self._pause_points[self._playback_index][0:3]
-        XL_msg += self._pause_points[self._playback_index][3]
+        AX_msg.append(self._pause_points[self._playback_index][0:3])
+        XL_msg.append(self._pause_points[self._playback_index][3])
         self.write_to_serial_port(AX_msg, self._ser_AX)
         self.write_to_serial_port(XL_msg, self._ser_XL)
 
@@ -212,19 +215,16 @@ class MotorInterface(object):
         XL_resp = self.read_serial_port(self._ser_XL)
 
         if AX_resp != None and XL_resp != None:
-            if len(AX_resp) >= 1:
+            if len(AX_resp) >= 1 and AX_resp[1] == 1:
+                self._playback_index -= 1
+                MUTEX.acquire()
+                camera_ready = 1
+                MUTEX.release()
+                time.sleep(10)
                 
         else :
             print "No Response!"
         
-        if 
-            self._playback_index -= 1;
-            MUTEX.acquire()
-            camera_ready = 1
-            MUTEX.release()
-            time.sleep(2)
-        
-
 
         time.sleep(1.0/self._playback_freq)
 
