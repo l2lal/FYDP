@@ -45,7 +45,6 @@ class MotorInterface(object):
         print 'You pressed CTRL+C'
         self._ser_AX.close()
         self._ser_XL.close()
-        sys.exit(0)
 
     def start_recording(self, channel):
         if self._current_state != 1:
