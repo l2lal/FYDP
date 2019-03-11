@@ -8,6 +8,9 @@ import time
 from BaseHTTPServer import BaseHTTPRequestHandler, HTTPServer
 import SocketServer
 
+MUTEX = Lock()
+steady_bool = False
+
 # THREAD CLASS: Server_Thread -> Used to spawn server thread
 class Server_Thread:  
     def __init__(self):
@@ -25,7 +28,7 @@ class Server_Thread:
         self.httpd.serve_forever()
  #END SERVER THREAD CLASS
     
-class MotorInterface(BaseHTTPRequestHandler):
+class MotorInterface(object):
     def __init__(self, recording_freq, playback_freq):
         self._states = ["waiting", "recording", "playback"]
         self._current_state = 0
@@ -37,16 +40,11 @@ class MotorInterface(BaseHTTPRequestHandler):
         baud_rate = 9600
         self._ser_AX = serial.Serial("/dev/ttyACM0", baud_rate)
         self._ser_XL = serial.Serial("/dev/ttyACM1", baud_rate)
-        self.steady_mutex = Lock()
-        self.steady_bool = False
-        self.pi_Server = Server_Thread()
-        self.pi_ServerThread = Thread(target=self.pi_Server.run)
     
-    def terminate(self, signum, frame):
+    def terminate(self):
         print 'You pressed CTRL+C'
         self._ser_AX.close()
         self._ser_XL.close()
-        self.pi_Server.terminate()
         sys.exit(0)
 
     def start_recording(self, channel):
@@ -189,6 +187,11 @@ def generateChecksum(data):
         checksum += ord(char)
     return (checksum % 256)
 
+def terminate(arm, thread):
+    arm.terminate()
+    thread.terminate()
+    sys.exit(0)
+   
 if __name__ == '__main__':
     recording_freq = 30.0
     playback_freq = recording_freq
@@ -211,14 +214,14 @@ if __name__ == '__main__':
     
     # Starting webserver thread
     #Create Class
-    #pi_Server = arm.Server_Thread()
+    pi_Server = Server_Thread()
     #Create Thread
-    arm.pi_ServerThread = Thread(target=arm.pi_Server.run) 
+    pi_ServerThread = Thread(target=pi_Server.run) 
     #Start Thread 
-    arm.pi_ServerThread.start()
+    pi_ServerThread.start()
     
     #Signal handler
-    signal.signal(signal.SIGINT, arm.terminate)
+    signal.signal(signal.SIGINT, terminate(arm, pi_Server))
    
     #print("Starting the loop")
     while True:
