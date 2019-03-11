@@ -9,7 +9,7 @@ from BaseHTTPServer import BaseHTTPRequestHandler, HTTPServer
 import SocketServer
 
 MUTEX = Lock()
-steady_bool = 0
+camera_ready = 0
 
 #HTTP SERVER FUNCTIONS
 class S(BaseHTTPRequestHandler):
@@ -21,7 +21,7 @@ class S(BaseHTTPRequestHandler):
     def do_GET(self):
         self._set_headers()
         MUTEX.acquire()
-        self.wfile.write("<html><body><h1>steady_bool</h1></body></html>")
+        self.wfile.write("<html><body><h1>" + str(camera_ready) + "</h1></body></html>")
         MUTEX.release()
 
     def do_HEAD(self):
