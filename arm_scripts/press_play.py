@@ -11,6 +11,7 @@ import SocketServer
 MUTEX = Lock()
 steady_bool = False
 
+
 # THREAD CLASS: Server_Thread -> Used to spawn server thread
 class Server_Thread:  
     def __init__(self):
@@ -185,16 +186,25 @@ def generateChecksum(data):
         checksum += ord(char)
     return (checksum % 256)
 
-def terminate(arm, thread):
+def terminate(signum, frame):
     print 'You pressed CTRL+C bro'
     arm.terminate()
-    thread.terminate()
+    pi_Server.terminate()
     sys.exit(0)
-   
+    
+recording_freq = 30.0
+playback_freq = recording_freq
+arm = MotorInterface(recording_freq, playback_freq)  
+
+# Starting webserver thread
+#Create Class
+pi_Server = Server_Thread()
+#Create Thread
+pi_ServerThread = Thread(target=pi_Server.run) 
+#Start Thread 
+pi_ServerThread.start()
+
 if __name__ == '__main__':
-    recording_freq = 30.0
-    playback_freq = recording_freq
-    arm = MotorInterface(recording_freq, playback_freq)
 
     GPIO.setmode(GPIO.BCM)
     # GPIO 23 & 17 set up as inputs, pulled up to avoid false detection.  
@@ -211,16 +221,8 @@ if __name__ == '__main__':
     # 'bouncetime=300' includes the bounce control written into interrupts2a.py  
     GPIO.add_event_detect(22, GPIO.FALLING, callback=arm.start_playback, bouncetime=200)
     
-    # Starting webserver thread
-    #Create Class
-    pi_Server = Server_Thread()
-    #Create Thread
-    pi_ServerThread = Thread(target=pi_Server.run) 
-    #Start Thread 
-    pi_ServerThread.start()
-    
     #Signal handler
-    signal.signal(signal.SIGINT, terminate(arm, pi_Server))
+    signal.signal(signal.SIGINT, terminate)
    
     #print("Starting the loop")
     while True:
