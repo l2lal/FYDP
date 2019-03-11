@@ -9,7 +9,7 @@ from BaseHTTPServer import BaseHTTPRequestHandler, HTTPServer
 import SocketServer
 
 MUTEX = Lock()
-camera_ready = 0
+camera_ready = 1
 
 #HTTP SERVER FUNCTIONS
 class S(BaseHTTPRequestHandler):
