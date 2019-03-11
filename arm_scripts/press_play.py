@@ -20,9 +20,9 @@ class S(BaseHTTPRequestHandler):
 
     def do_GET(self):
         self._set_headers()
-        self.steady_mutex.acquire()
+        MUTEX.acquire()
         self.wfile.write("<html><body><h1>hi!</h1></body></html>")
-        self.stead_mutex.release()
+        MUTEX.release()
 
     def do_HEAD(self):
         self._set_headers()
