@@ -74,7 +74,7 @@ class MotorInterface(object):
                 reject = True
         if reject:
             response = []
-    
+ 
         if checksum != str(calculated):
             print "Checksum mismatch!"
             print "received: " + checksum
