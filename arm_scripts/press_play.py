@@ -1,22 +1,62 @@
 #! /usr/bin/env python
-from threading import Thread
+from threading import Thread, Lock
 import RPi.GPIO as GPIO
 import serial
-import crcmod
 import signal
 import sys
 import time
 from BaseHTTPServer import BaseHTTPRequestHandler, HTTPServer
 import SocketServer
 
-class MotorInterface(BaseHTTPRequestHandler):
+MUTEX = Lock()
+camera_ready = 1
+
+#HTTP SERVER FUNCTIONS
+class S(BaseHTTPRequestHandler):
+    def _set_headers(self):
+        self.send_response(200)
+        self.send_header('Content-type', 'text/html')
+        self.end_headers()
+
+    def do_GET(self):
+        self._set_headers()
+        MUTEX.acquire()
+        self.wfile.write("<html><body><h1>" + str(camera_ready) + "</h1></body></html>")
+        MUTEX.release()
+
+    def do_HEAD(self):
+        self._set_headers()
+
+    def do_POST(self):
+        # Doesn't do anything with posted data
+        self._set_headers()
+        self.wfile.write("<html><body><h1>POST!</h1></body></html>")
+#END HTTP SERVER FUNCTIONS
+    
+# THREAD CLASS: Server_Thread -> Used to spawn server thread
+class Server_Thread:  
+    def __init__(self):
+        self._running = True
+        self.server_address = ('', 80)
+        self.httpd = HTTPServer(self.server_address, S)
+
+    def terminate(self):
+        print('closing server')
+        self.httpd.shutdown()
+        self._running = False  
+
+    def run(self):
+        print 'Starting httpd...'
+        self.httpd.serve_forever()
+ #END SERVER THREAD CLASS
+    
+class MotorInterface(object):
     def __init__(self, recording_freq, playback_freq):
         self._states = ["waiting", "recording", "playback"]
         self._current_state = 0
         self._motor_angles = []
         self._recording_index = 0
         self._playback_index = 0
-        self._crc32 = crcmod.Crc(0x104c11db7, initCrc=0, xorOut=0xFFFFFFFF)
         self._recording_freq = recording_freq
         self._playback_freq = playback_freq
         baud_rate = 9600
@@ -28,9 +68,10 @@ class MotorInterface(BaseHTTPRequestHandler):
 
     def signal_handler(self):
         print('You pressed Ctrl+C!')
+    
+    def terminate(self):
         self._ser_AX.close()
         self._ser_XL.close()
-        sys.exit(0)
 
     def start_recording(self, channel):
         if self._current_state != 1:
@@ -178,41 +219,6 @@ class MotorInterface(BaseHTTPRequestHandler):
             self.recording()
         elif self._current_state == 2:
             self.playing()
-    
-    #HTTP SERVER FUNCTIONS
-    def _set_headers(self):
-        self.send_response(200)
-        self.send_header('Content-type', 'text/html')
-        self.end_headers()
-
-    def do_GET(self):
-        self._set_headers()
-        self.wfile.write("<html><body><h1>hi!</h1></body></html>")
-
-    def do_HEAD(self):
-        self._set_headers()
-        
-    def do_POST(self):
-        # Doesn't do anything with posted data
-        self._set_headers()
-        self.wfile.write("<html><body><h1>POST!</h1></body></html>")
-    #END HTTP SERVER FUNCTIONS
-    
-# THREAD CLASS: Server_Thread -> Used to spawn server thread
-class Server_Thread:  
-    def __init__(self):
-        self._running = True
-        self.server_address = ('', 80)
-        self.httpd = HTTPServer(self.server_address, MotorInterface)
-
-    def terminate(self):
-        print('closing server')
-        self.httpd.shutdown()
-        self._running = False  
-
-    def run(self):
-        print 'Starting httpd...'
-        self.httpd.serve_forever()
         
 def generateChecksum(data):
     checksum  = 0
@@ -220,14 +226,25 @@ def generateChecksum(data):
         checksum += ord(char)
     return (checksum % 256)
 
-def sigint_handler(arm_interface, server_thread):
-    arm_interface.signal_handler()
-    server_thread.terminate()
+def terminate(signum, frame):
+    print 'You pressed CTRL+C bro'
+    arm.terminate()
+    pi_Server.terminate()
+    sys.exit(0)
     
+recording_freq = 30.0
+playback_freq = recording_freq
+arm = MotorInterface(recording_freq, playback_freq)  
+
+# Starting webserver thread
+#Create Class
+pi_Server = Server_Thread()
+#Create Thread
+pi_ServerThread = Thread(target=pi_Server.run) 
+#Start Thread 
+pi_ServerThread.start()
+
 if __name__ == '__main__':
-    recording_freq = 30.0
-    playback_freq = recording_freq
-    arm = MotorInterface(recording_freq, playback_freq)
 
     GPIO.setmode(GPIO.BCM)
     # GPIO 23 & 17 set up as inputs, pulled up to avoid false detection.  
@@ -244,16 +261,8 @@ if __name__ == '__main__':
     # 'bouncetime=300' includes the bounce control written into interrupts2a.py  
     GPIO.add_event_detect(22, GPIO.FALLING, callback=arm.start_playback, bouncetime=200)
     
-    # Starting webserver thread
-    #Create Class
-    pi_Server = Server_Thread()
-    #Create Thread
-    pi_ServerThread = Thread(target=pi_Server.run) 
-    #Start Thread 
-    pi_ServerThread.start()
-    
     #Signal handler
-    signal.signal(signal.SIGINT, sigint_handler(arm, pi_Server))
+    signal.signal(signal.SIGINT, terminate)
    
     #print("Starting the loop")
     while True:
