@@ -22,6 +22,8 @@ class MotorInterface(BaseHTTPRequestHandler):
         self._ser_XL = serial.Serial("/dev/ttyACM1", baud_rate)
         self.steady_mutex = Lock()
         self.steady_bool = False
+        self.pi_Server = Server_Thread()
+        self.pi_ServerThread = None
         
     # THREAD CLASS: Server_Thread -> Used to spawn server thread
     class Server_Thread:  
@@ -44,7 +46,7 @@ class MotorInterface(BaseHTTPRequestHandler):
         print 'You pressed CTRL+C'
         self._ser_AX.close()
         self._ser_XL.close()
-        self.httpd.shutdown()
+        self.pi_ServerThread.terminate()
         sys.exit(0)
 
     def start_recording(self, channel):
@@ -209,11 +211,11 @@ if __name__ == '__main__':
     
     # Starting webserver thread
     #Create Class
-    pi_Server = arm.Server_Thread()
+    #pi_Server = arm.Server_Thread()
     #Create Thread
-    pi_ServerThread = Thread(target=pi_Server.run) 
+    arm.pi_ServerThread = Thread(target=pi_Server.run) 
     #Start Thread 
-    pi_ServerThread.start()
+    arm.pi_ServerThread.start()
     
     #Signal handler
     signal.signal(signal.SIGINT, arm.terminate)
