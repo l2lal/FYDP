@@ -62,7 +62,7 @@ class MotorInterface(object):
         baud_rate = 9600
         self._ser_AX = serial.Serial("/dev/ttyACM0", baud_rate)
         self._ser_XL = serial.Serial("/dev/ttyACM1", baud_rate)
-        self._window_size = int(recording_freq * 1)
+        self._window_size = int(recording_freq * 0.8)
         self._pulse_hysteresis_threshold = 4
         self._pause_points = []
 
@@ -135,11 +135,13 @@ class MotorInterface(object):
 
     def read_serial_port(self, ser):
         response  = self.readBuffer(ser)
+        print "Response"
+        print response
         response = response.strip("\r\n")
         response = response.split(",")
-        if response[0] != 's':
+        if response[0] != 's' or len(response) <= 2:
             return None
-        checksum = response[-1]
+        checksum = 0
         reject = False
         for index in range(1,len(response)):
             try:
@@ -147,8 +149,10 @@ class MotorInterface(object):
             except ValueError:
                 reject = True
                 continue
-            if int(response[index]) > 1024 or response[index] < 0:
+            if response[index] > 1024 or response[index] < 0:
                 reject = True
+            if index == len(response) - 1:
+                checksum = response[index]
         response = response[0:-1]
         received = ",".join(map(str, response))
         received += ','
@@ -156,7 +160,7 @@ class MotorInterface(object):
         if reject:
             return response
     
-        if int(checksum) != int(calculated):
+        if checksum != calculated:
             print "Checksum mismatch!"
             print "received: " + checksum
             print "calculated: " + str(calculated)
@@ -199,14 +203,14 @@ class MotorInterface(object):
             self._current_state = 0
             print "end of playback"
         AX_msg = ["1"]
-        XL_msg = AX_msg
+        XL_msg = ["1"]
         AX_msg.append(str(self._pause_points[self._playback_index][0]))
         AX_msg.append(str(self._pause_points[self._playback_index][1]))
         AX_msg.append(str(self._pause_points[self._playback_index][2]))
         XL_msg.append(str(self._pause_points[self._playback_index][3]))
-        print "to be sent"
-        print AX_msg
-        print XL_msg
+        #print "to be sent"
+        #print AX_msg
+        #print XL_msg
         self.write_to_serial_port(AX_msg, self._ser_AX)
         self.write_to_serial_port(XL_msg, self._ser_XL)
 
@@ -226,7 +230,6 @@ class MotorInterface(object):
                 camera_ready = 1
                 MUTEX.release()
                 time.sleep(10)
-                
         else :
             print "No Response!"
         
