@@ -63,7 +63,7 @@ class MotorInterface(object):
         self._ser_AX = serial.Serial("/dev/ttyACM0", baud_rate)
         self._ser_XL = serial.Serial("/dev/ttyACM1", baud_rate)
         self._window_size = int(recording_freq * 1.5)
-        self._pulse_hysteresis_threshold = 20
+        self._pulse_hysteresis_threshold = 2
         self._pause_points = []
 
     def signal_handler(self):
@@ -88,7 +88,7 @@ class MotorInterface(object):
                 print "Nothing to be played back!"
                 return
             self._current_state = 2
-            self._playback_index = len(_pause_points) - 1
+            self._playback_index = len(self._pause_points) - 1
 
     #find when the arm is stalled and update the status on our webserver
     def find_pause_points(self):
@@ -199,10 +199,32 @@ class MotorInterface(object):
         XL_msg = AX_msg
         AX_msg += self._pause_points[self._playback_index][0:3]
         XL_msg += self._pause_points[self._playback_index][3]
-        #TODO if the pause point is reached update the boolean, wait for the image to be captured, change the index
-        self._playback_index -= 1;
         self.write_to_serial_port(AX_msg, self._ser_AX)
         self.write_to_serial_port(XL_msg, self._ser_XL)
+
+        #TODO if the pause point is reached update the boolean, wait for the image to be captured, change the index
+        AX_msg = ["3"]
+        XL_msg = AX_msg
+        self.write_to_serial_port(AX_msg, self._ser_AX)
+        self.write_to_serial_port(XL_msg, self._ser_XL)
+
+        AX_resp = self.read_serial_port(self._ser_AX)
+        XL_resp = self.read_serial_port(self._ser_XL)
+
+        if AX_resp != None and XL_resp != None:
+            if len(AX_resp) >= 1:
+                
+        else :
+            print "No Response!"
+        
+        if 
+            self._playback_index -= 1;
+            MUTEX.acquire()
+            camera_ready = 1
+            MUTEX.release()
+            time.sleep(2)
+        
+
 
         time.sleep(1.0/self._playback_freq)
 
