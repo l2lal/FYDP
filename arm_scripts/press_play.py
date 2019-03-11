@@ -22,6 +22,9 @@ class MotorInterface(BaseHTTPRequestHandler):
         baud_rate = 9600
         self._ser_AX = serial.Serial("/dev/ttyACM0", baud_rate)
         self._ser_XL = serial.Serial("/dev/ttyACM1", baud_rate)
+        self._window_size = int(recording_freq * 1.5)
+        self._pulse_hysteresis_threshold = 20
+        self._pause_points = []
 
     def signal_handler(self):
         print('You pressed Ctrl+C!')
@@ -36,14 +39,47 @@ class MotorInterface(BaseHTTPRequestHandler):
             self._recording_index = 0
             self._motor_angles = []
  
-    def start_playback(self, channel):  
+    def start_playback(self, channel):
+        self.find_pause_points()
         if self._current_state != 2:
-            if len(self._motor_angles) == 0:
+            if len(self._pause_points) == 0:
                 self._current_state = 0
                 print "Nothing to be played back!"
                 return
             self._current_state = 2
-            self._playback_index = self._recording_index - 1
+            self._playback_index = len(_pause_points) - 1
+
+    #find when the arm is stalled and update the status on our webserver
+    def find_pause_points(self):
+        for index in range(self._window_size, len(self._motor_angles):
+            low_index = index - self._window_size
+            #TODO the code is a bit too chunky
+            if abs(self._motor_angles[index][0] - self._motor_angles[low_index][0]) < self._pulse_hysteresis_threshold
+               and abs(self._motor_angles[index][1] - self._motor_angles[low_index][1]) < self._pulse_hysteresis_threshold
+               and abs(self._motor_angles[index][2] - self._motor_angles[low_index][2]) < self._pulse_hysteresis_threshold
+               and abs(self._motor_angles[index][3] - self._motor_angles[low_index][4]) < self._pulse_hysteresis_threshold:
+                average = []
+                average.pushback((self._motor_angles[index][0] + self._motor_angles[low_index][0])/2)
+                average.pushback((self._motor_angles[index][1] + self._motor_angles[low_index][1])/2)
+                average.pushback((self._motor_angles[index][2] + self._motor_angles[low_index][2])/2)
+                average.pushback((self._motor_angles[index][3] + self._motor_angles[low_index][3])/2)
+
+                upper_bound  = [(self._pulse_hysteresis_threshold/2)+x for x in average]
+                lower_bound = [x-(self._pulse_hysteresis_threshold/2) for x in average]
+                bool safe = True
+                for ii in range(index - self._window_size, index):
+                    if self._motor_angles[ii][0] < lower_bound[0] or
+                       self._motor_angles[ii][1] < lower_bound[1] or
+                       self._motor_angles[ii][2] < lower_bound[2] or
+                       self._motor_angles[ii][3] < lower_bound[3]:
+                       safe = False
+                    if self._motor_angles[ii][0] > upper_bound[0] or
+                       self._motor_angles[ii][1] > upper_bound[1] or
+                       self._motor_angles[ii][2] > upper_bound[2] or
+                       self._motor_angles[ii][3] > upper_bound[3]:
+                       safe = False
+                if safe:
+                    self._pause_points.pushback(average)
 
     def readBuffer(self, ser):
         data = ser.read()
@@ -120,8 +156,9 @@ class MotorInterface(BaseHTTPRequestHandler):
             print "end of playback"
         AX_msg = ["1"]
         XL_msg = AX_msg
-        AX_msg += self._motor_angles[self._playback_index][0:3]
-        XL_msg += self._motor_angles[self._playback_index][3]
+        AX_msg += self._pause_points[self._playback_index][0:3]
+        XL_msg += self._pause_points[self._playback_index][3]
+        #TODO if the pause point is reached update the boolean, wait for the image to be captured, change the index
         self._playback_index -= 1;
         self.write_to_serial_port(AX_msg, self._ser_AX)
         self.write_to_serial_port(XL_msg, self._ser_XL)
