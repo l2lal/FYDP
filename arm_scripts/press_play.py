@@ -62,8 +62,8 @@ class MotorInterface(object):
         baud_rate = 9600
         self._ser_AX = serial.Serial("/dev/ttyACM0", baud_rate)
         self._ser_XL = serial.Serial("/dev/ttyACM1", baud_rate)
-        self._window_size = int(recording_freq * 1.5)
-        self._pulse_hysteresis_threshold = 2
+        self._window_size = int(recording_freq * 1)
+        self._pulse_hysteresis_threshold = 4
         self._pause_points = []
 
     def signal_handler(self):
@@ -200,8 +200,13 @@ class MotorInterface(object):
             print "end of playback"
         AX_msg = ["1"]
         XL_msg = AX_msg
-        AX_msg.append(self._pause_points[self._playback_index][0:3])
-        XL_msg.append(self._pause_points[self._playback_index][3])
+        AX_msg.append(str(self._pause_points[self._playback_index][0]))
+        AX_msg.append(str(self._pause_points[self._playback_index][1]))
+        AX_msg.append(str(self._pause_points[self._playback_index][2]))
+        XL_msg.append(str(self._pause_points[self._playback_index][3]))
+        print "to be sent"
+        print AX_msg
+        print XL_msg
         self.write_to_serial_port(AX_msg, self._ser_AX)
         self.write_to_serial_port(XL_msg, self._ser_XL)
 
