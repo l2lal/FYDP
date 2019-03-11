@@ -9,7 +9,7 @@ from BaseHTTPServer import BaseHTTPRequestHandler, HTTPServer
 import SocketServer
 
 MUTEX = Lock()
-steady_bool = False
+steady_bool = 0
 
 #HTTP SERVER FUNCTIONS
 class S(BaseHTTPRequestHandler):
