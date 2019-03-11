@@ -47,7 +47,7 @@ class MotorInterface(BaseHTTPRequestHandler):
         print 'You pressed CTRL+C'
         self._ser_AX.close()
         self._ser_XL.close()
-        self.pi_ServerThread.terminate()
+        self.pi_Server.terminate()
         sys.exit(0)
 
     def start_recording(self, channel):
