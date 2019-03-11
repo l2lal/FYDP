@@ -216,7 +216,7 @@ if __name__ == '__main__':
     pi_ServerThread.start()
     
     #Signal handler
-    signal.signal(signal.SIGINT, arm.terminate())
+    signal.signal(signal.SIGINT, arm.terminate)
    
     #print("Starting the loop")
     while True:
