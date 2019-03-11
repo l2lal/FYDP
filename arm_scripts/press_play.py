@@ -39,7 +39,7 @@ class MotorInterface(BaseHTTPRequestHandler):
         self._ser_XL = serial.Serial("/dev/ttyACM1", baud_rate)
         self.steady_mutex = Lock()
         self.steady_bool = False
-        self.pi_Server = Server_Thread()
+        self.pi_Server = self.Server_Thread()
         self.pi_ServerThread = None
        
 
