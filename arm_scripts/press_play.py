@@ -214,7 +214,7 @@ if __name__ == '__main__':
     #Create Class
     #pi_Server = arm.Server_Thread()
     #Create Thread
-    arm.pi_ServerThread = Thread(target=pi_Server.run) 
+    arm.pi_ServerThread = Thread(target=arm.pi_Server.run) 
     #Start Thread 
     arm.pi_ServerThread.start()
     
