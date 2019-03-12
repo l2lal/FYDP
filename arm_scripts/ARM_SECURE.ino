@@ -31,14 +31,13 @@
 #define HOME_M2 525
 #define HOME_M3 800
 
-#define MOVING_SPEED 50
+#define MOVING_SPEED 100
 
 #define EXPECTED_COMMAS 5
 
 #define DEBUG 0
+#define MSG_SIZE 50 
 
-
-const int MSG_SIZE = 50; 
 const int startByte_ind = 0; 
 const int modeByte_ind = 2; 
 const int dataByte_ind = 4;
@@ -50,9 +49,9 @@ void setup(){
   // Initialize the dynamixel bus:
   // Dynamixel 2.0 Baudrate -> 0: 9600, 1: 57600, 2: 115200, 3: 1Mbps
   Dxl.begin(3);
-  Dxl.goalSpeed(ID_M1, 100);  //Dynamixel ID 1 Speed Control 100 setting
-  Dxl.goalSpeed(ID_M2, 100);  //Dynamixel ID 1 Speed Control 100 setting
-  Dxl.goalSpeed(ID_M3, 100);  //Dynamixel ID 1 Speed Control 100 setting
+  //Dxl.goalSpeed(ID_M1, 100);  //Dynamixel ID 1 Speed Control 100 setting
+  //Dxl.goalSpeed(ID_M2, 100);  //Dynamixel ID 1 Speed Control 100 setting
+  //Dxl.goalSpeed(ID_M3, 100);  //Dynamixel ID 1 Speed Control 100 setting
 
   Dxl.jointMode(ID_M1);
   Dxl.jointMode(ID_M2);
@@ -80,7 +79,7 @@ void loop() {
   int good_start = 1; 
   if(start_byte != 's') 
   {
-    SerialUSB.println("faulty start"); 
+    //SerialUSB.println("faulty start"); 
     good_start = 0;
   } 
   
@@ -93,7 +92,7 @@ void loop() {
       goHome(); 
     }
     
-    else if(mode == '3')
+    else if(mode == '3') // STATE: Check if finished moving
     {
       char PoseResponse[5] = {};
       PoseResponse[0] = 's'; 
@@ -104,9 +103,9 @@ void loop() {
       int mov3 = Dxl.readByte(ID_M3, MOVING);
   
       
-      SerialUSB.println(mov1);
+      /*SerialUSB.println(mov1);
       SerialUSB.println(mov2);
-      SerialUSB.println(mov3);
+      SerialUSB.println(mov3);*/
       
       if(mov1 || mov2 || mov3)
       {
@@ -117,7 +116,11 @@ void loop() {
       {
         PoseResponse[2] = '1';
       }
-      PoseResponse[3] = '\0';
+      
+      PoseResponse[3] = ',';
+      PoseResponse[5] = '\0';
+      int state3_chksum = generate_checksum(PoseResponse);
+      itoa(state3_chksum, PoseResponse+strlen(PoseResponse), 10);
       SerialUSB.println(PoseResponse); 
     }
   
@@ -131,55 +134,15 @@ void loop() {
     else if(mode == '1') // playback mode
     {
       
-      // validate checksum
-      static char chksum_char[10]; 
-      int validate = 0;
-      int num_commas = 0; // waiting for s,1,CMD_1,CMD_2,CMD_3,CHECKSUM -> want 5 commas before checksum
-      int old_K = 0; 
-      
-      for(int k = 0; k < strlen(temp); k++)
-      {
-        if(num_commas < EXPECTED_COMMAS)
-        {
-          validate += temp[k];
-
-          if(temp[k] == ',')
-          {
-            num_commas++; 
-          }
-
-        }
-        
-        else if(num_commas == EXPECTED_COMMAS) 
-        {
-          old_K = k; 
-          break;
-        }
-      }
-
-      int start_ind = 0;
-
-      for(int new_ind = old_K; new_ind < strlen(temp); new_ind++)
-      {
-        chksum_char[start_ind++] = temp[new_ind];
-      } 
-      
-      int chksum_int = atoi(chksum_char);
-
-      if(chksum_int != validate)
-      {
-        SerialUSB.println("Faulty Checksum, rejecting.");
-      }
-      
-      else
+      if(validate_checksum(temp, EXPECTED_COMMAS))
       {
         int pos[3]; 
         char* command = strtok(temp, ","); //split command by commas, this is start
-        SerialUSB.println(command); 
+        //SerialUSB.println(command); 
         command = strtok(0, ","); //split again, which is mode
-        SerialUSB.println(command);
+        //SerialUSB.println(command);
         command = strtok(0, ","); // this is the first motor position (ID 1)
-        SerialUSB.println(command);
+        //SerialUSB.println(command);
         int i = 0;
         
         while (command != 0)
@@ -188,7 +151,7 @@ void loop() {
             i++; 
             if(DEBUG)
             {
-            SerialUSB.println(pos[i]);
+              SerialUSB.println(pos[i]);
             }
             // Do something with servoId and position
     
@@ -204,15 +167,9 @@ void loop() {
     
     else
     {
-      SerialUSB.println("faulty mode"); 
+      //SerialUSB.println("faulty mode"); 
     }
-  }
-  
-  //SerialUSB.print(temp);
-
-  /*Structure of buffer:
-  start character (1) | mode (1) | checksum (1) | 
-  */ 
+  } 
 }
 
 int recordMotorPositions()
@@ -233,9 +190,7 @@ int recordMotorPositions()
   
   pos3 = Dxl.readWord(ID_M3, POS_L);
   //itoa(pos, pos_3, 10);
-  /*SerialUSB.print(pos1);
-  SerialUSB.print(pos2);
-  SerialUSB.print(pos3); */
+
   
   if(DEBUG)
   {
@@ -317,9 +272,80 @@ void goHome()
   Dxl.writeWord(ID_M2, TORQUE_ENABLE, 1);
   Dxl.writeWord(ID_M3, TORQUE_ENABLE, 1);
   
+  Dxl.writeWord(ID_M1, MOVING_SPEED_REG, MOVING_SPEED);
+  Dxl.writeWord(ID_M2, MOVING_SPEED_REG, MOVING_SPEED);
+  Dxl.writeWord(ID_M3, MOVING_SPEED_REG, MOVING_SPEED);
+  
   Dxl.writeWord(ID_M1, GOAL_POSITION, HOME_M1);
   Dxl.writeWord(ID_M2, GOAL_POSITION, HOME_M2);
   Dxl.writeWord(ID_M3, GOAL_POSITION, HOME_M3);
+  
+}
+
+int validate_checksum(char temp[MSG_SIZE], int commas_before)
+{
+  // validate checksum
+      static char chksum_char[10]; 
+      int validate = 0;
+      int num_commas = 0; // waiting for s,1,CMD_1,CMD_2,CMD_3,CHECKSUM -> want 5 commas before checksum
+      int old_K = 0; 
+      
+      for(int k = 0; k < strlen(temp); k++)
+      {
+        if(num_commas < commas_before)
+        {
+          validate += temp[k];
+
+          if(temp[k] == ',')
+          {
+            num_commas++; 
+          }
+
+        }
+        
+        else if(num_commas == EXPECTED_COMMAS) 
+        {
+          old_K = k; 
+          break;
+        }
+      }
+
+      int start_ind = 0;
+
+      for(int new_ind = old_K; new_ind < strlen(temp); new_ind++)
+      {
+        chksum_char[start_ind++] = temp[new_ind];
+      } 
+      
+      int chksum_int = atoi(chksum_char);
+      chksum_int = chksum_int % 256;
+      validate = validate % 256; 
+      
+      if(chksum_int != validate)
+      {
+        return 0;
+      }
+      
+      else
+      {
+        return 1; 
+      }
+      
+}
+
+int generate_checksum(char* temp)
+{
+  int chksum_int = 0; 
+  for(int k = 0; k < strlen(temp); k++)
+  {
+        {
+          chksum_int += temp[k];
+        }   
+  }
+  
+  chksum_int = chksum_int % 256;
+  
+  return chksum_int; 
   
 }
 
