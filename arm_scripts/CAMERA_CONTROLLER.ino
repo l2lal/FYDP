@@ -10,6 +10,7 @@
 #define POS_H 38
 #define TORQUE_ENABLE 24
 #define GOAL_POSITION 30
+#define MOVING 49
 
 #define ID_M1 1
 #define ID_M2 2 
@@ -33,9 +34,12 @@
 #define HOME_M3 800
 #define HOME_M4 800
 
+#define MSG_SIZE 50
+#define EXPECTED_COMMAS 3
+
+
 #define DEBUG 0
 
-const int MSG_SIZE = 50; 
 const int startByte_ind = 0; 
 const int modeByte_ind = 2; 
 const int dataByte_ind = 4;
@@ -74,7 +78,7 @@ void loop() {
   int good_start = 1; 
   if(start_byte != 's') 
   {
-    SerialUSB.println("faulty start"); 
+    //SerialUSB.println("faulty start"); 
     good_start = 0;
   } 
   
@@ -87,7 +91,39 @@ void loop() {
       goHome(); 
     }
     
+    else if (mode == '4')
+    {
+      sweepCamera();
+    }
+    else if(mode == '3') // STATE: Check if finished moving
+    {
+      char PoseResponse[5] = {};
+      PoseResponse[0] = 's'; 
+      PoseResponse[1] = ',';
+       
+      int mov4 = Dxl.readByte(ID_M4, MOVING);
   
+      /*SerialUSB.println(mov1);
+      SerialUSB.println(mov2);
+      SerialUSB.println(mov3);*/
+      
+      if(mov4) //moving
+      {
+        PoseResponse[2] = '0';
+      }
+      
+      else //not moving
+      {
+        PoseResponse[2] = '1';
+      }
+      
+      PoseResponse[3] = ',';
+      PoseResponse[5] = '\0';
+      int state3_chksum = generate_checksum(PoseResponse);
+      itoa(state3_chksum, PoseResponse+strlen(PoseResponse), 10);
+      SerialUSB.println(PoseResponse); 
+    }
+    
     else if(mode == '2') // record mode
     {
       int record = recordMotorPositions(); 
@@ -97,51 +133,44 @@ void loop() {
     
     else if(mode == '1') // playback mode
     {
-      int validate = 0;
-      int num_commas = 0; 
-      for(int k = 0; k < strlen(temp); k++)
+      if(validate_checksum(temp, EXPECTED_COMMAS))
       {
-        validate += temp[k];
-      }
+          int pos[3]; 
+          char* command = strtok(temp, ","); //split command by commas, this is start
+          //SerialUSB.println(command); 
+          command = strtok(0, ","); //split again, which is mode
+          //SerialUSB.println(command);
+          command = strtok(0, ","); // this is the first motor position (ID 4)
+          //SerialUSB.println(command);
+          int i = 0;
+          
+          while (command != 0)
+          {        
+              pos[i] = atoi(command);
+              i++; 
+              if(DEBUG)
+              {
+                SerialUSB.println(pos[i]);
+              }
+              // Do something with servoId and position
       
-      int pos[3]; 
-      char* command = strtok(temp, ","); //split command by commas, this is start
-      SerialUSB.println(command); 
-      command = strtok(0, ","); //split again, which is mode
-      SerialUSB.println(command);
-      command = strtok(0, ","); // this is the first motor position (ID 4)
-      SerialUSB.println(command);
-      int i = 0;
-      
-      while (command != 0)
-      {        
-          pos[i] = atoi(command);
-          i++; 
-          if(DEBUG)
-          {
-            SerialUSB.println(pos[i]);
+              // Find the next command in input string
+              command = strtok(0, ",");
           }
-          // Do something with servoId and position
-  
-          // Find the next command in input string
-          command = strtok(0, ",");
+          
+          int playback = playBackPositions(pos); 
+          //if(playback)
+          //SerialUSB.println("playback successful"); 
+        }
+        
       }
-      int playback = playBackPositions(pos); 
-      //if(playback)
-      //SerialUSB.println("playback successful"); 
-    }
+      
     
     else
     {
-      SerialUSB.println("faulty mode"); 
+      //SerialUSB.println("faulty mode"); 
     }
   }
-  
-  //SerialUSB.print(temp);
-
-  /*Structure of buffer:
-  start character (1) | mode (1) | checksum (1) | 
-  */ 
 }
 
 int recordMotorPositions()
@@ -215,5 +244,85 @@ void goHome()
   Dxl.writeWord(ID_M4, GOAL_POSITION, HOME_M4);
 
   
+}
+
+int validate_checksum(char temp[MSG_SIZE], int commas_before)
+{
+  // validate checksum
+      static char chksum_char[10]; 
+      int validate = 0;
+      int num_commas = 0; // waiting for s,1,CMD_1,CMD_2,CMD_3,CHECKSUM -> want 5 commas before checksum
+      int old_K = 0; 
+      
+      for(int k = 0; k < strlen(temp); k++)
+      {
+        if(num_commas < commas_before)
+        {
+          validate += temp[k];
+
+          if(temp[k] == ',')
+          {
+            num_commas++; 
+          }
+
+        }
+        
+        else if(num_commas == EXPECTED_COMMAS) 
+        {
+          old_K = k; 
+          break;
+        }
+      }
+
+      int start_ind = 0;
+
+      for(int new_ind = old_K; new_ind < strlen(temp); new_ind++)
+      {
+        chksum_char[start_ind++] = temp[new_ind];
+      } 
+      
+      int chksum_int = atoi(chksum_char);
+      chksum_int = chksum_int % 256;
+      validate = validate % 256; 
+      
+      if(chksum_int != validate)
+      {
+        return 0;
+      }
+      
+      else
+      {
+        return 1; 
+      }
+      
+}
+
+int generate_checksum(char* temp)
+{
+  int chksum_int = 0; 
+  for(int k = 0; k < strlen(temp); k++)
+  {
+        {
+          chksum_int += temp[k];
+        }   
+  }
+  
+  chksum_int = chksum_int % 256;
+  return chksum_int; 
+  
+}
+
+void sweepCamera()
+{
+
+  Dxl.writeWord(ID_M4, GOAL_POSITION, 700);
+  delay(1500);
+  Dxl.writeWord(ID_M4, GOAL_POSITION, 800);
+  delay(1500);
+  Dxl.writeWord(ID_M4, GOAL_POSITION, 900);
+  delay(1500);
+  
+  
+  goHome(); 
 }
 
