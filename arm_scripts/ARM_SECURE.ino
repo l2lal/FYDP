@@ -12,6 +12,13 @@
 #define GOAL_POSITION 30
 #define MOVING 46
 #define MOVING_SPEED_REG 32
+#define COMP_MARGIN_CW 26
+#define COMP_MARGIN_CWW 27
+#define TORQ_LIMIT 34
+#define MAX_TORQ 14
+
+#define CW_COMP_SLOPE 28
+#define CCW_COMP_SLOPE 29
 
 #define ID_M1 1
 #define ID_M2 2 
@@ -31,12 +38,15 @@
 #define HOME_M2 525
 #define HOME_M3 800
 
-#define MOVING_SPEED 100
+#define MOVING_SPEED 50
 
 #define EXPECTED_COMMAS 5
 
 #define DEBUG 0
 #define MSG_SIZE 50 
+
+#define DROOP_OFFSET 12
+#define REVOLVE_OFFSET 0
 
 const int startByte_ind = 0; 
 const int modeByte_ind = 2; 
@@ -90,6 +100,26 @@ void loop() {
     if(mode == '0')
     {
       goHome(); 
+    }
+    
+    else if(mode == '6')
+    {
+      /*int torq_lim = 0;
+      int max_torq = 0; 
+      Dxl.writeByte(ID_M2, TORQ_LIMIT, 1023);
+      Dxl.writeByte(ID_M2, MAX_TORQ, 1023);
+      char Torq[10] = {}; 
+      Torq[0] = 's'; 
+      Torq[1] = ',';
+      torq_lim = Dxl.readWord(ID_M2, TORQ_LIMIT);
+      max_torq = Dxl.readWord(ID_M2, MAX_TORQ);
+      //Torq[2] = '\0';
+      //itoa(torq_lim, Torq+strlen(Torq), 10);
+      //Torq[strlen(Torq)] = ',';
+      //itoa(max_torq, Torq+strlen(Torq), 10);
+      SerialUSB.println(torq_lim);
+      SerialUSB.println(max_torq);*/
+       
     }
     
     else if(mode == '3') // STATE: Check if finished moving
@@ -182,14 +212,21 @@ int recordMotorPositions()
   Dxl.writeWord(ID_M2, TORQUE_ENABLE, 0);
   Dxl.writeWord(ID_M3, TORQUE_ENABLE, 0);
 
-  pos1 = Dxl.readWord(ID_M1, POS_L);
+  do
+  {
+    pos1 = Dxl.readWord(ID_M1, POS_L);
+  } while(pos1 >= 1024);
   //itoa(pos, pos_1, 10); 
   
-  pos2 = Dxl.readWord(ID_M2, POS_L);
-  //itoa(pos, pos_2, 10);
+  do
+  {
+    pos2 = Dxl.readWord(ID_M2, POS_L);
+  } while(pos2 >= 1024);  //itoa(pos, pos_2, 10);
   
-  pos3 = Dxl.readWord(ID_M3, POS_L);
-  //itoa(pos, pos_3, 10);
+  do
+  {
+    pos3 = Dxl.readWord(ID_M3, POS_L);
+  } while(pos3 >= 1024);  //itoa(pos, pos_3, 10);
 
   
   if(DEBUG)
@@ -235,6 +272,7 @@ int playBackPositions(int pos[3])
     SerialUSB.println(pos[2]);
   }
   
+  //setCompliance(); // make strict error margins in position
   Dxl.writeWord(ID_M1, TORQUE_ENABLE, 1);
   Dxl.writeWord(ID_M2, TORQUE_ENABLE, 1);
   Dxl.writeWord(ID_M3, TORQUE_ENABLE, 1);
@@ -252,8 +290,8 @@ int playBackPositions(int pos[3])
   Dxl.writeWord(ID_M2, MOVING_SPEED_REG, MOVING_SPEED);
   Dxl.writeWord(ID_M3, MOVING_SPEED_REG, MOVING_SPEED);
 
-  Dxl.writeWord(ID_M1, GOAL_POSITION, pos[0]);
-  Dxl.writeWord(ID_M2, GOAL_POSITION, pos[1]);
+  Dxl.writeWord(ID_M1, GOAL_POSITION, pos[0] - REVOLVE_OFFSET);
+  Dxl.writeWord(ID_M2, GOAL_POSITION, pos[1] - DROOP_OFFSET);
   Dxl.writeWord(ID_M3, GOAL_POSITION, pos[2]);
   
   if(DEBUG)
@@ -268,6 +306,8 @@ int playBackPositions(int pos[3])
 
 void goHome()
 {
+  //setCompliance(); 
+  
   Dxl.writeWord(ID_M1, TORQUE_ENABLE, 1);
   Dxl.writeWord(ID_M2, TORQUE_ENABLE, 1);
   Dxl.writeWord(ID_M3, TORQUE_ENABLE, 1);
@@ -276,8 +316,8 @@ void goHome()
   Dxl.writeWord(ID_M2, MOVING_SPEED_REG, MOVING_SPEED);
   Dxl.writeWord(ID_M3, MOVING_SPEED_REG, MOVING_SPEED);
   
-  Dxl.writeWord(ID_M1, GOAL_POSITION, HOME_M1);
-  Dxl.writeWord(ID_M2, GOAL_POSITION, HOME_M2);
+  Dxl.writeWord(ID_M1, GOAL_POSITION, HOME_M1 - REVOLVE_OFFSET);
+  Dxl.writeWord(ID_M2, GOAL_POSITION, HOME_M2 - DROOP_OFFSET);
   Dxl.writeWord(ID_M3, GOAL_POSITION, HOME_M3);
   
 }
@@ -347,5 +387,17 @@ int generate_checksum(char* temp)
   
   return chksum_int; 
   
+}
+
+void setCompliance()
+{
+   Dxl.writeByte(ID_M1, CW_COMP_SLOPE, 32);
+   Dxl.writeByte(ID_M1, CCW_COMP_SLOPE, 32);
+   
+   Dxl.writeByte(ID_M2, CW_COMP_SLOPE, 32);
+   Dxl.writeByte(ID_M2, CCW_COMP_SLOPE, 32);
+   
+   Dxl.writeByte(ID_M3, CW_COMP_SLOPE, 32);
+   Dxl.writeByte(ID_M3, CCW_COMP_SLOPE, 32);
 }
 

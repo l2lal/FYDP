@@ -182,7 +182,10 @@ int recordMotorPositions()
   Dxl.writeWord(ID_M4, TORQUE_ENABLE, 0);
 
 
-  pos1 = Dxl.readWord(ID_M4, POS_L);
+  do
+  {
+    pos1 = Dxl.readWord(ID_M4, POS_L);
+  } while(pos1 >= 1024);
   
   if(DEBUG)
   {
